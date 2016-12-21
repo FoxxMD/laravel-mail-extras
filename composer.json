@@ -1,0 +1,25 @@
+{
+    "name": "foxxmd/laravel-mail-extras",
+    "description": "Extra functionality for sending mail with Laravel",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "FoxxMD",
+            "email": "FoxxMD@users.noreply.github.com"
+        }
+    ],
+    "require": {
+        "php": ">=5.5.9",
+        "illuminate/contracts": "5.1.*",
+        "illuminate/container": "5.1.*",
+        "illuminate/support": "5.1.*",
+        "illuminate/mail": "5.1.*",
+        "illuminate/log": "5.1.*"
+    },
+    "autoload": {
+        "psr-4": {
+            "FoxxMD\\LaravelMailExtras\\": "src/"
+        }
+    }
+}
