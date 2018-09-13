@@ -3,6 +3,8 @@
 
 namespace FoxxMD\LaravelMailExtras\Mail;
 
+use FoxxMD\LaravelMailExtras\Exceptions\DeliveryFailureException;
+use FoxxMD\LaravelMailExtras\Exceptions\MailFailureException;
 use Illuminate\Contracts\Mail\Mailer as MailerContract;
 use Illuminate\Contracts\Mail\MailQueue as MailQueueContract;
 use Illuminate\Contracts\View\Factory;
@@ -13,6 +15,8 @@ class Mailer extends \Illuminate\Mail\Mailer implements MailerContract, MailQueu
 
 	// Number of times to retry sending mail before giving up
 	protected $retries = 0;
+	protected $throwOnMailFailure = true;
+	protected $throwOnDeliveryFailure = false;
 
 
 	/**
@@ -22,13 +26,15 @@ class Mailer extends \Illuminate\Mail\Mailer implements MailerContract, MailQueu
 	 * @param  \Swift_Mailer                                $swift
 	 * @param  \Illuminate\Contracts\Events\Dispatcher|null $events
 	 *
-	 * @return void
+	 * @param null                                          $config
 	 */
 	public function __construct(Factory $views, Swift_Mailer $swift, Dispatcher $events = null, $config = null)
 	{
 		if(null !== $config) {
-		$this->retries=$config->get('mail.retries', 0);
-	}
+			$this->retries = $config->get('mail.retries', 0);
+			$this->throwOnMailFailure = $config->get('mail.exceptions.mailFailure', true);
+			$this->throwOnDeliveryFailure = $config->get('mail.exceptions.deliveryFailure', false);
+		}
 
 		parent::__construct($views, $swift, $events);
 	}
@@ -40,53 +46,87 @@ class Mailer extends \Illuminate\Mail\Mailer implements MailerContract, MailQueu
 	 * @param  array           $data
 	 * @param  \Closure|string $callback
 	 *
+	 * @param bool             $throwOnMailFailure
+	 * @param bool             $throwOnDeliveryFailure
+	 *
 	 * @return void
+	 * @throws DeliveryFailureException
+	 * @throws MailFailureException
 	 */
-	public function send($view, array $data, $callback)
+	public function send($view, array $data, $callback, $throwOnMailFailure = null, $throwOnDeliveryFailure = null)
 	{
-		$firstRun = true;
+		list($view, $plain, $raw) = $this->parseView($view);
+
+		$data['message'] = $message = $this->createMessage();
+
+		// Once we have retrieved the view content for the e-mail we will set the body
+		// of this message using the HTML type, which will provide a simple wrapper
+		// to creating view based emails that are able to receive arrays of data.
+		$this->addContent($message, $view, $plain, $raw, $data);
+
+		$this->callMessageBuilder($callback, $message);
+
+		if (isset($this->to['address'])) {
+			$message->to($this->to['address'], $this->to['name'], true);
+		}
+
+		$message = $message->getSwiftMessage();
+
 		$attempts = 1;
-		$ex = null;
-		while($firstRun || $attempts <= $this->retries)
+		$success = false;
+		while(!$success || $attempts <= $this->retries)
 		{
-			$firstRun = false;
 			try
 			{
-				parent::send($view, $data, $callback);
-				$ex = null;
+				$this->sendSwiftMessage($message);
+				$failures = $this->failures();
+				if(count($failures) > 0) {
+					$deliveryFailureException = new DeliveryFailureException(null, 0, $attempts, $view, $failures);
+					$this->logger->error($deliveryFailureException, [
+						'attempts' => $attempts,
+						'view' => $view,
+						'recipients' => $failures
+					]);
+					if($this->shouldThrowOnDeliveryFailure($throwOnDeliveryFailure)) {
+						throw $deliveryFailureException;
+					}
+				}
+				$success = true;
+			}
+			catch(DeliveryFailureException $e) {
+				throw $e;
 			}
 			catch (\Exception $e)
 			{
-				$ex = $e;
-				$msg = '';
-				if($this->retries > 0 && $attempts > 0) {
-					$msg .= "[Attempt $attempts] ";
+				if($this->retries >= $attempts) {
+					continue;
 				}
-				$this->logger->error($msg . "Sending mail to {{$this->getReadableName()}} was not successful. " . PHP_EOL . "Message: {{$e->getMessage()}}");
+				$failures = $this->failures();
+				$mailFailureException = new MailFailureException(null, 0, $attempts, $view, $failures, $e);
+				$this->logger->error($mailFailureException, [
+					'attempts' => $attempts,
+					'view' => $view,
+					'recipients' => $failures
+				]);
+				if($this->shouldThrowOnMailFailure($throwOnMailFailure)) {
+					throw $mailFailureException;
+				}
 			}
 			$attempts++;
 		}
-		if(null !== $ex) {
-			throw $ex;
-		}
 	}
 
-	/**
-	 * Return a human readable name to identify email
-	 *
-	 * @return string|null
-	 */
-	protected function getReadableName()
-	{
-		if (isset($this->to['name']))
-		{
-			return $this->to['name'];
+	protected function shouldThrowOnMailFailure($providedBool = null) {
+		if($providedBool !== null) {
+			return $providedBool;
 		}
-		elseif (isset($this->to['address']))
-		{
-			return $this->to['address'];
-		}
+		return $this->throwOnMailFailure;
+	}
 
-		return null;
+	protected function shouldThrowOnDeliveryFailure($providedBool = null) {
+		if($providedBool !== null) {
+			return $providedBool;
+		}
+		return $this->throwOnDeliveryFailure;
 	}
 }

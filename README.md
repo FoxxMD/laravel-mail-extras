@@ -32,6 +32,19 @@ Simply add this new key/value anywhere in `config/mail.php` to set the number of
 
 It defaults to 0 if not present (normal behavior)
 
+Default behavior for throwing exceptions is also configurable.
+
+```php
+'exceptions' => [
+    'mailFailure' => true, // will throw a MailFailureExeption if any exception is thrown during sending mail
+    'deliveryFailure' => false // will throw a MailDeliveryException if any recipients fail to recieve mail during delivery
+]
+```
+
+These parameters can be overridden using the send method
+ 
+ EX `Mail::send($view, $data, $callback, $throwOnMailFailure, $throwOnDeliveryFailure)`
+
 ## Contributing
 
 New functionality is welcomed! Create an issue or submit a PR :)
