@@ -72,10 +72,11 @@ class Mailer extends \Illuminate\Mail\Mailer implements MailerContract, MailQueu
 
 		$message = $message->getSwiftMessage();
 
-		$attempts = 1;
+		$attempts = 0;
 		$success = false;
-		while(!$success || $attempts <= $this->retries)
+		while(!$success && $attempts <= $this->retries)
 		{
+			$attempts++;
 			try
 			{
 				$this->sendSwiftMessage($message);
@@ -99,7 +100,6 @@ class Mailer extends \Illuminate\Mail\Mailer implements MailerContract, MailQueu
 			catch (\Exception $e)
 			{
 				if($this->retries >= $attempts) {
-					$attempts++;
 					continue;
 				}
 				$failures = $this->failures();
@@ -113,7 +113,6 @@ class Mailer extends \Illuminate\Mail\Mailer implements MailerContract, MailQueu
 					throw $mailFailureException;
 				}
 			}
-			$attempts++;
 		}
 	}
 
