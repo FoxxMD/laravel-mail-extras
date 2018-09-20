@@ -99,6 +99,7 @@ class Mailer extends \Illuminate\Mail\Mailer implements MailerContract, MailQueu
 			catch (\Exception $e)
 			{
 				if($this->retries >= $attempts) {
+					$attempts++;
 					continue;
 				}
 				$failures = $this->failures();
