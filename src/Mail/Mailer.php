@@ -11,7 +11,7 @@ use Illuminate\Contracts\View\Factory;
 use Illuminate\Contracts\Events\Dispatcher;
 use Swift_Mailer;
 
-class Mailer extends \Illuminate\Mail\Mailer implements MailerContract, MailQueueContract {
+class Mailer extends \Illuminate\Mail\Mailer {
 
 	// Number of times to retry sending mail before giving up
 	protected $retries = 0;
@@ -53,7 +53,7 @@ class Mailer extends \Illuminate\Mail\Mailer implements MailerContract, MailQueu
 	 * @throws DeliveryFailureException
 	 * @throws MailFailureException
 	 */
-	public function send($view, array $data, $callback, $throwOnMailFailure = null, $throwOnDeliveryFailure = null)
+	public function send($view, array $data = [], $callback = null, $throwOnMailFailure = null, $throwOnDeliveryFailure = null)
 	{
 		list($view, $plain, $raw) = $this->parseView($view);
 
