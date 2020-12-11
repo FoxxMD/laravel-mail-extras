@@ -11,11 +11,11 @@
     ],
     "require": {
         "php": ">=5.5.9",
-        "illuminate/contracts": "5.3.*",
-        "illuminate/container": "5.3.*",
-        "illuminate/support": "5.3.*",
-        "illuminate/mail": "5.3.*",
-        "illuminate/log": "5.3.*"
+        "illuminate/contracts": "5.4.*",
+        "illuminate/container": "5.4.*",
+        "illuminate/support": "5.4.*",
+        "illuminate/mail": "5.4.*",
+        "illuminate/log": "5.4.*"
     },
     "autoload": {
         "psr-4": {
